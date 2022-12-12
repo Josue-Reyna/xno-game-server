@@ -81,7 +81,6 @@ io.on("connection", (socket) => {
                 color: color,
                 uid: player.uid,
             }
-            console.log(player2);
             room.players.pop();
             room.players.push(player2);
             room.isJoin = false;
@@ -163,9 +162,8 @@ io.on("connection", (socket) => {
             room = await room.save();
             if (player.points == room.maxRounds) {
                 io.to(roomId).emit('endGame', player);
+                socket.leave(roomId);
                 room.delete();
-                console.log('disconnected');
-                io.close();
             } else {
                 io.to(roomId).emit('pointIncrease', player);
             }
