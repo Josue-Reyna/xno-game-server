@@ -27,13 +27,13 @@ io.on("connection", (socket) => {
             room.maxRounds = maxRounds;
             room.players.push(player);
             room.turn = player;
-            room.socketID1 = socket.id
+            room.socketID1 = socket.id.toString()
             room = await room.save();
             const roomId = room._id.toString();
             socket.join(roomId);
             io.to(roomId).emit('createRoomSuccess', room);
         } catch (e) {
-            console.log(e);
+            console.log('Create Room Error: ' + e);
         }
     });
 
@@ -61,11 +61,11 @@ io.on("connection", (socket) => {
                 io.to(roomId).emit('updatePlayers', room.players);
                 io.to(roomId).emit('updateRoom', room);
             } else {
-                socket.emit('errorOccurred', 'Game in progress');
+                socket.emit('errorOccurred', `Game in progress`);
                 return;
             }
         } catch (e) {
-            console.log(e);
+            console.log('Join Auth Error: ' + e);
         }
     });
 
@@ -76,7 +76,7 @@ io.on("connection", (socket) => {
             let player2 = {
                 nickname: nickname,
                 socketID: player.socketID,
-                roomId: roomId,
+                roomID: roomId,
                 playerType: player.playerType,
                 color: color,
                 uid: player.uid,
@@ -89,7 +89,7 @@ io.on("connection", (socket) => {
             io.to(roomId).emit('updatePlayers', room.players);
             io.to(roomId).emit('updateRoom', room);
         } catch (e) {
-            console.log(e);
+            console.log('Join Room Error: ' + e);
         }
     });
 
@@ -116,24 +116,24 @@ io.on("connection", (socket) => {
             room.players.push(player2);
             room.maxRounds = maxRounds;
             room.turn = player1;
-            const roomId = room._id.toString();
-            socket.join(roomId);
             room.isJoin = false;
             room.socketID1 = socket.id
             room.socketID2 = socket.id
             room = await room.save();
+            const roomId = room._id.toString();
+            socket.join(roomId);
             io.to(roomId).emit('sameDeviceSuccess', room);
             io.to(roomId).emit('updatePlayers', room.players);
             io.to(roomId).emit('updateRoom', room);
         } catch (e) {
-            console.log(e);
+            console.log('Same Device Error: ' + e);
         }
     });
 
     socket.on('tap', async ({ index, roomId }) => {
         try {
             let room = await Room.findById(roomId);
-            let choice = room.turn.playerType; 
+            let choice = room.turn.playerType;
             if (room.turnIndex == 0) {
                 room.turn = room.players[1];
                 room.turnIndex = 1;
@@ -148,7 +148,7 @@ io.on("connection", (socket) => {
                 room,
             });
         } catch (e) {
-            console.log(e);
+            console.log('Tap Error: ' + e);
         }
     });
 
@@ -156,22 +156,91 @@ io.on("connection", (socket) => {
         try {
             let room = await Room.findById(roomId);
             let player = room.players.find((_player) =>
-                _player.uid == winnerId,);
+                _player.uid == winnerId);
             player.points += 1;
-            console.log('Winner points: ', player.points);
             room = await room.save();
             if (player.points == room.maxRounds) {
                 io.to(roomId).emit('endGame', player);
-                socket.leave(roomId);
-                room.delete();
             } else {
                 io.to(roomId).emit('pointIncrease', player);
+                io.to(roomId).emit('updatePlayers', room.players);
+                io.to(roomId).emit('updateRoom', room);
             }
         } catch (e) {
-            console.log(e);
+            console.log('Winner Error: ' + e);
         }
     });
 
+    socket.on('again', async (roomId) => {
+        try {
+            let room = await Room.findById(roomId);
+            var playerTurn;
+            if (room.players[0].points == room.maxRounds) {
+                playerTurn = 1;
+            } else {
+                playerTurn = 0;
+            }
+            room.players[0].points = 0
+            room.players[1].points = 0;
+            room.currentRound = 1;
+            room.turn = room.players[playerTurn];
+            room.turnIndex = playerTurn;
+            room = await room.save();
+            io.to(roomId).emit('againSuccess', room);
+            io.to(roomId).emit('updatePlayers', room.players);
+            io.to(roomId).emit('updateRoom', room);
+        } catch (e) {
+            console.log('Again Error: ' + e);
+        }
+    });
+
+    socket.on('disconnect', async () => {
+        try {
+            let socketID = socket.id;
+            socketID = socketID.toString();
+            let room = await Room.findOne({ socketID1: socketID });
+            if (room == null) {
+                room = await Room.findOne({ socketID2: socketID });
+            }
+            if (room.socketID1.toString() == room.socketID2.toString()) {
+                socket.leave(room._id);
+                room.delete();
+                return;
+            }
+            if (room.players.length == 1) {
+                room.delete();
+                return;
+            }
+            let otherPlayer = room.players.find((_player) =>
+                _player.socketID == socket.id.toString());
+            let player = room.players.find((_player) =>
+                _player.socketID != socket.id.toString());
+            socket.leave(room._id);
+            let playerNew = {
+                nickname: player.nickname,
+                socketID: player.socketID,
+                roomID: player.roomID,
+                playerType: 'X',
+                color: player.color,
+                uid: player.uid,
+            }
+            room.players.pop();
+            room.players.pop();
+            room.players.push(playerNew);
+            room.turnIndex = 0;
+            room.currentRound = 1;
+            room.turn = playerNew;
+            room.socketID1 = playerNew.socketID;
+            room.isJoin = true;
+            room = await room.save();
+            io.to(room._id).emit('exitSuccess',
+                `${otherPlayer.nickname} leave the game ✌️`,
+            );
+            io.to(room._id).emit('updateRoom', room);
+        } catch (e) {
+            console.log('Disconnect Error: ' + e);
+        }
+    });
 });
 
 
@@ -181,9 +250,9 @@ mongoose
     .then(() => {
         console.log("Connection successful");
     }).catch((e) => {
-        console.log(e);
+        console.log('Connection Error: ' + e);
     });
 
 server.listen(PORT, HOST, () => {
-    console.log(`Server started & running on port ${PORT}`);
+    console.log(`Server started & running`);
 });
