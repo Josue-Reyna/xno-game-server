@@ -15,11 +15,6 @@ const roomSchema = new mongoose.Schema({
     socketID2: {
         type: String,
     },
-    currentRound: {
-        required: true,
-        type: Number,
-        default: 1,
-    },
     players: [playerSchema],
     isJoin: {
         type: Boolean,

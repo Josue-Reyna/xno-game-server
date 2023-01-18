@@ -22,9 +22,6 @@ const playerSchema = new mongoose.Schema({
     color: {
         type: Number,
     },
-    uid: {
-        type: String,
-    }
 });
 
 module.exports = playerSchema;

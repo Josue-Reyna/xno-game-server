@@ -22,12 +22,11 @@ io.on("connection", (socket) => {
                 nickname,
                 playerType: 'X',
                 color: color,
-                uid: socket.id.slice(0, 18) + '01',
             };
             room.maxRounds = maxRounds;
             room.players.push(player);
             room.turn = player;
-            room.socketID1 = socket.id.toString()
+            room.socketID1 = socket.id.toString();
             room = await room.save();
             const roomId = room._id.toString();
             socket.join(roomId);
@@ -51,11 +50,10 @@ io.on("connection", (socket) => {
                     socketID: socket.id,
                     roomID: roomId,
                     playerType: 'O',
-                    uid: socket.id.slice(0, 18) + '02',
                 }
                 socket.join(roomId);
                 room.players.push(player);
-                room.socketID2 = socket.id
+                room.socketID2 = socket.id.toString();
                 room = await room.save();
                 io.to(roomId).emit('joinAuthSuccess', room);
                 io.to(roomId).emit('updatePlayers', room.players);
@@ -79,7 +77,6 @@ io.on("connection", (socket) => {
                 roomID: roomId,
                 playerType: player.playerType,
                 color: color,
-                uid: player.uid,
             }
             room.players.pop();
             room.players.push(player2);
@@ -90,43 +87,6 @@ io.on("connection", (socket) => {
             io.to(roomId).emit('updateRoom', room);
         } catch (e) {
             console.log('Join Room Error: ' + e);
-        }
-    });
-
-    socket.on('sameDevice', async ({ color1, color2, maxRounds }) => {
-        try {
-            let room = new Room();
-            let player1 = {
-                nickname: 'X',
-                socketID: socket.id,
-                roomID: room._id.toString(),
-                playerType: 'X',
-                color: color1,
-                uid: socket.id.slice(0, 18) + '01',
-            };
-            let player2 = {
-                nickname: 'O',
-                socketID: socket.id,
-                roomID: room._id.toString(),
-                playerType: 'O',
-                color: color2,
-                uid: socket.id.slice(0, 18) + '02',
-            };
-            room.players.push(player1);
-            room.players.push(player2);
-            room.maxRounds = maxRounds;
-            room.turn = player1;
-            room.isJoin = false;
-            room.socketID1 = socket.id
-            room.socketID2 = socket.id
-            room = await room.save();
-            const roomId = room._id.toString();
-            socket.join(roomId);
-            io.to(roomId).emit('sameDeviceSuccess', room);
-            io.to(roomId).emit('updatePlayers', room.players);
-            io.to(roomId).emit('updateRoom', room);
-        } catch (e) {
-            console.log('Same Device Error: ' + e);
         }
     });
 
@@ -156,15 +116,13 @@ io.on("connection", (socket) => {
         try {
             let room = await Room.findById(roomId);
             let player = room.players.find((_player) =>
-                _player.uid == winnerId);
+                _player.socketID == winnerId);
             player.points += 1;
             room = await room.save();
             if (player.points == room.maxRounds) {
                 io.to(roomId).emit('endGame', player);
             } else {
                 io.to(roomId).emit('pointIncrease', player);
-                io.to(roomId).emit('updatePlayers', room.players);
-                io.to(roomId).emit('updateRoom', room);
             }
         } catch (e) {
             console.log('Winner Error: ' + e);
@@ -182,7 +140,6 @@ io.on("connection", (socket) => {
             }
             room.players[0].points = 0
             room.players[1].points = 0;
-            room.currentRound = 1;
             room.turn = room.players[playerTurn];
             room.turnIndex = playerTurn;
             room = await room.save();
@@ -222,19 +179,16 @@ io.on("connection", (socket) => {
                 roomID: player.roomID,
                 playerType: 'X',
                 color: player.color,
-                uid: player.uid,
             }
             room.players.pop();
             room.players.pop();
             room.players.push(playerNew);
             room.turnIndex = 0;
-            room.currentRound = 1;
             room.turn = playerNew;
-            room.socketID1 = playerNew.socketID;
             room.isJoin = true;
             room = await room.save();
             io.to(room._id).emit('exitSuccess',
-                `${otherPlayer.nickname} leave the game ✌️`,
+                `${otherPlayer.nickname} leave the game`,
             );
             io.to(room._id).emit('updateRoom', room);
         } catch (e) {
