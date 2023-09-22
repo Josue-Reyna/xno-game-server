@@ -158,11 +158,8 @@ io.on("connection", (socket) => {
             let room = await Room.findOne({ socketID1: socketID });
             if (room == null) {
                 room = await Room.findOne({ socketID2: socketID });
-            }
-            if (room.socketID1.toString() == room.socketID2.toString()) {
-                socket.leave(room._id);
-                room.delete();
-                return;
+                if (room == null)
+                    return;
             }
             if (room.players.length == 1) {
                 room.delete();
@@ -187,8 +184,14 @@ io.on("connection", (socket) => {
             room.turn = playerNew;
             room.isJoin = true;
             room = await room.save();
+            var nickname;
+            if (otherPlayer.nickname == null) {
+                nickname = 'Player O';
+            } else {
+                nickname = otherPlayer.nickname
+            }
             io.to(room._id).emit('exitSuccess',
-                `${otherPlayer.nickname} leave the game`,
+                `${nickname} leave the game`,
             );
             io.to(room._id).emit('updateRoom', room);
         } catch (e) {
