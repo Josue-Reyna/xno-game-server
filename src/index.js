@@ -191,7 +191,7 @@ io.on("connection", (socket) => {
                 nickname = otherPlayer.nickname
             }
             io.to(room._id).emit('exitSuccess',
-                `${nickname} leave the game`,
+                nickname,
             );
             io.to(room._id).emit('updateRoom', room);
         } catch (e) {
